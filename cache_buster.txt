@@ -1,0 +1,2 @@
+# Cache buster - version 2026-09-08-1
+# Force rebuild of frontend build artifacts
