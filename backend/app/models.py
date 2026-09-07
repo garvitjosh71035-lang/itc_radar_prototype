@@ -136,11 +136,11 @@ class Registration(Base):
     gstin = Column(String(15), primary_key=True, nullable=False)
     legal_name = Column(Text, nullable=False)
     pan = Column(String(10), nullable=False, index=True)
-    constitution = Column(SQLEnum(Constitution), nullable=False)
+    constitution = Column(String(50), nullable=False)
     registration_date = Column(Date, nullable=False)
-    status = Column(SQLEnum(RegistrationStatus), nullable=False, default=RegistrationStatus.ACTIVE)
+    status = Column(String(50), nullable=False, default='active')
     cancellation_date = Column(Date, nullable=True)
-    declared_role = Column(SQLEnum(DeclaredRole), nullable=True)
+    declared_role = Column(String(50), nullable=True)
     declared_hsn = Column(ARRAY(String(8)), nullable=False)
     authorised_signatory_id = Column(Text, nullable=True)
     bank_account_hash = Column(ARRAY(String), nullable=True)
@@ -179,13 +179,13 @@ class Premises(Base):
     
     premises_id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     gstin = Column(String(15), ForeignKey("registration.gstin"), nullable=False)
-    premises_type = Column(SQLEnum(PremisesType), nullable=False)
+    premises_type = Column(String(50), nullable=False)
     address_raw = Column(Text, nullable=False)
     geom = Column(Geometry("POINT", srid=4326), nullable=True)
-    geocode_tier = Column(SQLEnum(GeocodeTier), nullable=False)
+    geocode_tier = Column(String(50), nullable=False)
     geocode_source = Column(Text, nullable=False)
     cluster_id = Column(PGUUID(as_uuid=True), nullable=True)
-    join_status = Column(SQLEnum(JoinStatus), nullable=False)
+    join_status = Column(String(50), nullable=False)
     goods_capable = Column(Boolean, nullable=False, default=False)
     
     # Relationships
@@ -278,11 +278,11 @@ class InvoiceLine(Base):
     quantity = Column(Numeric(20, 6), nullable=True)
     uqc = Column(String(10), nullable=True)
     quantity_kg = Column(Numeric(20, 6), nullable=True)
-    uqc_conversion_status = Column(SQLEnum("exact", "estimated", "failed"), nullable=False)
+    uqc_conversion_status = Column(String(50), nullable=False)
     taxable_value = Column(Numeric(20, 2), nullable=False)
     tax_amount = Column(Numeric(20, 2), nullable=False)
     place_of_supply = Column(Text, nullable=False)
-    supply_type = Column(SQLEnum(SupplyType), nullable=False)
+    supply_type = Column(String(50), nullable=False)
     
     # Relationships
     movements = relationship("MovementRecord", back_populates="invoice_line")
@@ -362,7 +362,7 @@ class ReturnSummary(Base):
     itc_availed = Column(Numeric(20, 2), nullable=False)
     tax_paid_cash = Column(Numeric(20, 2), nullable=False)
     closing_credit_balance = Column(Numeric(20, 2), nullable=False)
-    filing_status = Column(SQLEnum("filed", "late", "not_filed"), nullable=False)
+    filing_status = Column(String(50), nullable=False)
     
     __table_args__ = (
         CheckConstraint("outward_value >= 0", name="check_outward_positive"),
@@ -394,7 +394,7 @@ class RefundClaim(Base):
     gstin = Column(String(15), ForeignKey("registration.gstin"), nullable=False, index=True)
     period_from = Column(Date, nullable=False)
     period_to = Column(Date, nullable=False)
-    route = Column(SQLEnum(RefundRoute), nullable=False)
+    route = Column(String(50), nullable=False)
     amount_claimed = Column(Numeric(20, 2), nullable=False)
     
     # Relationships
@@ -432,8 +432,8 @@ class Attribution(Base):
     premises_id = Column(PGUUID(as_uuid=True), ForeignKey("premises.premises_id"), primary_key=True)
     attributed_value = Column(Numeric(20, 2), nullable=False)
     attributed_mass_kg = Column(Numeric(15, 2), nullable=True)
-    method = Column(SQLEnum(AttributionMethod), nullable=False)
-    confidence = Column(SQLEnum(AttributionConfidence), nullable=False)
+    method = Column(String(50), nullable=False)
+    confidence = Column(String(50), nullable=False)
     
     # Relationships
     premises = relationship("Premises", back_populates="attributions")
@@ -468,12 +468,12 @@ class Finding(Base):
     
     finding_id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     claim_id = Column(PGUUID(as_uuid=True), ForeignKey("refund_claim.claim_id"), nullable=False, index=True)
-    detector = Column(SQLEnum(DetectorName), nullable=False)
+    detector = Column(String(20), nullable=False)
     score = Column(Numeric(5, 4), nullable=False)  # Range [0, 1]
     confidence = Column(Numeric(5, 4), nullable=False)  # Range [0, 1]
     finding_text = Column(Text, nullable=False)
     evidence_refs = Column(ARRAY(String), nullable=False)
-    blocked_reason = Column(SQLEnum(BlockedReason), nullable=True)
+    blocked_reason = Column(String(50), nullable=True)
     
     # Relationships
     claim = relationship("RefundClaim", back_populates="findings")
