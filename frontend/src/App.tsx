@@ -1,7 +1,23 @@
 import React, { useState, useEffect } from 'react'
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+// Add type declaration for ImportMeta with Vite env
+interface ImportMeta {
+  env: {
+    readonly VITE_API_URL?: string;
+  };
+}
+
+// Declare ImportMeta interface globally
+declare global {
+  interface ImportMeta {
+    env: {
+      readonly VITE_API_URL?: string;
+    };
+  }
+}
+
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 interface Finding {
   detector: string
@@ -236,7 +252,7 @@ function App() {
                 <ul style={{
                   listStyle: 'none',
                   padding: 0,
-                  spaceyBetween: '0.75rem'
+                  gap: '0.75rem'
                 }}>
                   {[
                     '✅ D1 Price Closure Detector (Live)',
@@ -264,7 +280,7 @@ function App() {
                 <ul style={{
                   listStyle: 'none',
                   padding: 0,
-                  spaceyBetween: '0.75rem'
+                  gap: '0.75rem'
                 }}>
                   {[
                     '🎯 P2 Pattern: Over-invoicing (21×)',
