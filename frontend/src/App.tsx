@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import axios from 'axios'
+import apiClient from './api/client'
 
 // Add type declaration for ImportMeta with Vite env
 interface ImportMeta {
@@ -90,22 +90,20 @@ function App() {
       const testCase = testCases[testType]
       
       if (testType === 'd1-flagged' || testType === 'd1-clean') {
-        const response = await axios.post<DetectorResponse>(
-          `${API_URL}/api/detectors/d1`,
+        const response = await apiClient.post<DetectorResponse>(
+          `/api/detectors/d1`,
           testCase.invoice_lines,
-          { headers: { 'Content-Type': 'application/json' } }
         )
         
         setResult(JSON.stringify(response.data, null, 2))
       } else {
-        const response = await axios.post<any>(
-          `${API_URL}/api/cases/analyze`,
+        const response = await apiClient.post<any>(
+          `/api/cases/analyze`,
           {
             gstin: testCase.gstin,
             claim_id: `RC-${testCase.gstin}`,
             invoice_lines: testCase.invoice_lines
           },
-          { headers: { 'Content-Type': 'application/json' } }
         )
         
         setResult(JSON.stringify(response.data, null, 2))
