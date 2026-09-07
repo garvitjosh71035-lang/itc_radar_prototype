@@ -3,7 +3,8 @@ Database connection and session management.
 Implements Section 15 data model from workflow.md.
 """
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.pool import StaticPool
 
@@ -73,7 +74,7 @@ def check_connection() -> bool:
     """
     try:
         with engine.connect() as conn:
-            result = conn.execute("SELECT 1")
+            result = conn.execute(text("SELECT 1"))
             return result.scalar() == 1
     except Exception as e:
         print(f"Database connection failed: {e}")
