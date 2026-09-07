@@ -48,22 +48,20 @@ async def startup_event():
     Initialize database tables on startup.
     Called once when application starts.
     """
+    import os
     print(f"Starting PACE Backend v{__import__('app').__version__}")
     print(f"Environment: {settings.ENVIRONMENT}")
     
-    # Create all SQLAlchemy models in database
-    Base.metadata.create_all(bind=engine)
-    
-    # Run initialization if needed
-    init_db()
-    
-    # Verify connection
-    if not init_db.__module__:
-        from app.database import check_connection
-        if not check_connection():
-            raise RuntimeError("Database connection failed!")
-    
-    print("Database initialized successfully")
+    # Only create tables if DATABASE_URL is available (not in production initially)
+    # In production, tables are created via migration script or manually
+    if settings.is_development:
+        # Create all SQLAlchemy models in database for development
+        try:
+            Base.metadata.create_all(bind=engine)
+            init_db()
+            print("Database initialized successfully")
+        except Exception as e:
+            print(f"Warning: Database initialization skipped: {e}")
 
 
 # ============================================================================
