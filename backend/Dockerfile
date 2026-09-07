@@ -8,7 +8,6 @@ RUN apt-get update && apt-get install -y \
     gcc \
     g++ \
     libgeos-dev \
-    libpcre3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Set environment variables
