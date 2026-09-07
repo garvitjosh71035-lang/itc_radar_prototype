@@ -48,6 +48,42 @@ docker-compose up -d
 
 1. Create database on Render:
    - Go to https://dashboard.render.com/
+
+2. Connect your GitHub repo and follow [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
+
+---
+
+## 🏥 Health Monitoring System
+
+**New!** Complete health monitoring that checks your services every 5 minutes.
+
+### Quick Start
+
+Run a single test check:
+```bash
+python scripts/health_monitor.py
+```
+
+Start continuous monitoring in production:
+```bash
+# Windows
+scripts\health_monitor.bat
+
+# Or directly:
+python scripts/health_monitor.py --daemon
+```
+
+### Features
+
+✅ Automated health checks (every 5 minutes)  
+✅ Uptime tracking and statistics  
+✅ Slack/Email alerts for downtime  
+✅ Response time metrics (min/max/avg)  
+✅ Beautiful terminal dashboard  
+✅ JSON statistics export  
+✅ Graceful shutdown handling  
+
+For full documentation, see [scripts/HEALTH_MONITOR_README.md](scripts/HEALTH_MONITOR_README.md)
    - New → PostgreSQL → Use render.yaml config
 
 2. Connect your GitHub repo:
