@@ -91,14 +91,14 @@ function App() {
       
       if (testType === 'd1-flagged' || testType === 'd1-clean') {
         const response = await apiClient.post<DetectorResponse>(
-          `/api/detectors/d1`,
+          '/detectors/d1',
           testCase.invoice_lines,
         )
         
         setResult(JSON.stringify(response.data, null, 2))
       } else {
         const response = await apiClient.post<any>(
-          `/api/cases/analyze`,
+          '/cases/analyze',
           {
             gstin: testCase.gstin,
             claim_id: `RC-${testCase.gstin}`,
