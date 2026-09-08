@@ -1,29 +1,22 @@
-import axios from 'axios';
+import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://pace-backend-cqiy.onrender.com/api';
+const configured = (import.meta.env.VITE_API_URL || '').trim()
 
-// Create axios instance with production URL
+function normalizeApiBase(value: string) {
+  const clean = value.replace(/\/+$/, '')
+  return clean.endsWith('/api') ? clean : `${clean}/api`
+}
+
+// Keep the currently deployed Render API as the zero-config fallback.
+// Any VITE_API_URL provided by Render overrides it automatically.
+const API_URL = configured
+  ? normalizeApiBase(configured)
+  : 'https://pace-backend-cqiy.onrender.com/api'
+
 const apiClient = axios.create({
   baseURL: API_URL,
-  timeout: 30000, // 30 second timeout
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+  timeout: 15000,
+  headers: { 'Content-Type': 'application/json' },
+})
 
-// Add response interceptor for better error handling
-apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    console.error('API Error:', {
-      url: error.config?.url,
-      method: error.config?.method,
-      data: error.response?.data,
-      status: error.response?.status,
-      message: error.message,
-    });
-    return Promise.reject(error);
-  }
-);
-
-export default apiClient;
+export default apiClient

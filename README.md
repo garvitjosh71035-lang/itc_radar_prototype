@@ -1,311 +1,157 @@
-# PACE - Physical Plausibility Engine for GST ITC Refund Adjudication
+# ITC RADAR — PACE Prototype v2
 
-**Premises-Aggregated Capacity Evidence**
+**Evidence-driven GST Input Tax Credit refund risk screening.**  
+React + TypeScript frontend · FastAPI backend · deterministic synthetic cases · Render-ready.
 
-A system to detect fraudulent GST Input Tax Credit refund claims using open earth-observation data, trade statistics, and network analysis.
+> **Prototype scope:** This repository is a synthetic decision-support demonstration. It does **not** contain real taxpayer data, production-calibrated thresholds, or an automated refund-denial mechanism.
 
----
+## What changed in v2
 
-## 🎯 What This System Does
+The original prototype proved the basic D1 Price Closure flow, but the UI was a conventional purple admin dashboard and D2/D3/D4 were mostly placeholder experiences. v2 keeps the same PACE/ITC RADAR idea and deployment shape while rebuilding the product experience around the project’s real differentiator: **turning declarations into a traceable evidence dossier**.
 
-Fraudsters can forge every document in a refund claim. They **cannot** forge:
-1. The size of the building they registered
-2. The market price of the goods (set by real trade)
-3. The fact that nobody upstream ever paid tax in cash
+The redesign is inspired by the visual discipline of Granola: warm off-white surfaces, oversized editorial typography, rounded app windows, sparse navigation, soft yellow/green light, and product UI shown as the hero rather than decorative graphics. It does not copy Granola branding or assets.
 
-PACE measures these three things from independent open data and flags physically implausible declarations.
+### v2 interface
 
-**Key innovation:** Dual-constraint closure—raising declared prices hits market benchmarks; raising quantities hits physical capacity limits. No common region where large-scale fraud is feasible.
+- Minimal pill navigation and editorial hero.
+- “Declarations → Evidence enhanced” hero preview.
+- Full interactive **Evidence Console** instead of a static dashboard.
+- Five visible detector states: D1, D2a, D2b, D3 and D4.
+- Human-readable findings, confidence, provenance and blocked reasons.
+- Interactive price, premises and network evidence views.
+- Risk tier and recommended next action kept separate from detector scores.
+- Explicit synthetic-data and human-review labeling throughout.
+- Responsive mobile/tablet/desktop layout.
+- Zero external image/font dependency; visuals are CSS + inline SVG for reliable Render builds.
 
----
+### Synthetic case library
 
-## 📋 Quick Start
+The UI contains **9 deterministic scenarios** so the demo proves both detection and restraint:
 
-### Prerequisites
-- Docker & Docker Compose installed
-- Git repository pushed to GitHub (for Render deployment)
+1. `RC-0001` — flagship over-invoicing + shared-premises shell cluster.
+2. `P2-OVER` — over-invoicing / price-closure case.
+3. `P3-CYCLE` — circular trading / network-topology case.
+4. `P4-VOLUME` — volume inflation / throughput-density case.
+5. `P5-COLLISION` — footprint-collision shell cluster.
+6. `N1-TRADER` — legitimate trader; physical tests are role-gated.
+7. `N4-PREMIUM` — legitimate premium-product exporter.
+8. `N5-ESTATE` — legitimate shared industrial estate.
+9. `N6-UNRES` — unresolved address; adverse physical findings are blocked.
 
-### Run Locally (Development)
+The positive and hard-negative structure follows the supplied workflow specification. `RC-0001` also mirrors its authoritative worked example.
+
+## Detector model represented in the prototype
+
+| Detector | Purpose | v2 demo behavior |
+|---|---|---|
+| **D1 — Price Closure** | Compare declared unit value with a robust HSN benchmark | Implemented against deterministic **synthetic** benchmark anchors |
+| **D2a — Capacity Closure** | Compare attributed throughput density to district × sector benchmark | Implemented for synthetic case inputs with role/geocode/attribution gates |
+| **D2b — Physical Capacity** | Storage/handling engineering explanation | Intentionally blocked with `unsourced_parameter` until constants are citable |
+| **D3 — Premises Aggregation** | Detect implausible concentration of goods-supplying GSTINs | Implemented for synthetic premises records and safety gates |
+| **D4 — Network Topology** | Detect weak tax origin, cycles, velocity and shared IDs | Implemented as transparent named synthetic features |
+
+Fusion is rule-based: a physical signal does not create an adverse tier unless D1 or D4 corroborates it. Low-confidence premises evidence is suppressed rather than silently discarded.
+
+## Repository layout
+
+```text
+.
+├── backend/
+│   └── app/
+│       ├── main.py                 # FastAPI v2 endpoints
+│       ├── demo_cases.py           # deterministic synthetic cases
+│       └── detectors/              # D1, D2a/D2b, D3, D4, fusion
+├── frontend/
+│   ├── public/pace-icon.svg
+│   └── src/
+│       ├── App.tsx                 # redesigned product experience
+│       ├── index.css               # responsive Granola-inspired visual system
+│       ├── api/client.ts
+│       ├── components/Icons.tsx
+│       └── data/demoCases.ts
+├── docs/
+│   ├── workflow.md                 # supplied design specification, unmodified
+│   ├── ITC_PPT.pdf                 # supplied SIH deck, unmodified
+│   └── ANALYSIS.md                 # v2 design/architecture analysis
+├── render.yaml
+└── docker-compose.yml
+```
+
+## Local run
+
+### Backend
 
 ```bash
-# Clone the repository
-git clone <your-repo-url>
-cd pace-prototype
-
-# Copy environment file
-cp .env.example .env
-
-# Start all services
-docker-compose up -d
-
-# Access the application
-# Frontend: http://localhost:3000
-# Backend API: http://localhost:8000
-# Database: localhost:5432 (password: pace_password)
+cd backend
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
 ```
 
-### Deploy to Render.com (Production)
+Useful endpoints:
 
-1. Create database on Render:
-   - Go to https://dashboard.render.com/
-
-2. Connect your GitHub repo and follow [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md)
-
----
-
-## 🏥 Health Monitoring System
-
-**New!** Complete health monitoring that checks your services every 5 minutes.
-
-### Quick Start
-
-Run a single test check:
-```bash
-python scripts/health_monitor.py
+```text
+GET  /health
+GET  /api/health-proxy
+GET  /api/demo/cases
+POST /api/demo/cases/RC-0001/analyze
+POST /api/detectors/d1
+GET  /docs
 ```
 
-Start continuous monitoring in production:
-```bash
-# Windows
-scripts\health_monitor.bat
-
-# Or directly:
-python scripts/health_monitor.py --daemon
-```
-
-### Features
-
-✅ Automated health checks (every 5 minutes)  
-✅ Uptime tracking and statistics  
-✅ Slack/Email alerts for downtime  
-✅ Response time metrics (min/max/avg)  
-✅ Beautiful terminal dashboard  
-✅ JSON statistics export  
-✅ Graceful shutdown handling  
-
-For full documentation, see [scripts/HEALTH_MONITOR_README.md](scripts/HEALTH_MONITOR_README.md)
-   - New → PostgreSQL → Use render.yaml config
-
-2. Connect your GitHub repo:
-   - New → Web Service → Select repo
-   - Build command: `cd backend && pip install -r requirements.txt`
-   - Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-
-3. Add environment variables from `.env.example`
-
-4. Deploy automatically on git push!
-
----
-
-## 🏗️ Architecture
-
-### Four Independent Detectors
-
-| Detector | Detects | Data Source | Satellite Needed |
-|----------|---------|-------------|------------------|
-| **D1 Price Closure** | Over-invoicing (high value, low mass) | UN Comtrade, DGCI&S export stats | ❌ No |
-| **D2 Capacity Closure** | Volume inflation (bulk commodities) | Overture Buildings footprints | ✅ Yes |
-| **D3 Premises Aggregation** | Shell clusters, ghost suppliers | Overture Buildings, ESA WorldCover | ✅ Yes |
-| **D4 Network Topology** | Syndicate structures, circular trading | Invoice graph analysis | ❌ No |
-
-### Pipeline Stages
-
-```
-P0 Trigger → P1 Role Gate → P2 Network Assembly → P3 Site Resolution
-→ P4 Physical Envelope → P5 Attribution → P6 Detection → P7 Dossier → P8 Feedback
-```
-
-### Decision Tiers
-
-- 🟢 **Green**: Normal refund processing
-- 🟡 **Amber**: Flagged for post-disbursement audit
-- 🔴 **Red**: Physical verification required before disbursement
-- 🔴+Cluster: Escalate for Rule 86A credit blocking consideration
-
----
-
-## 📁 Project Structure
-
-```
-pace-prototype/
-├── backend/                 # FastAPI backend
-│   ├── app/
-│   │   ├── detectors/      # D1-D4 implementations
-│   │   ├── services/       # Business logic
-│   │   ├── routes/         # API endpoints
-│   │   ├── models.py       # SQLAlchemy models
-│   │   └── main.py         # FastAPI entry point
-│   └── Dockerfile
-├── frontend/               # React + TypeScript
-│   ├── src/
-│   │   ├── components/    # UI components
-│   │   ├── pages/         # Route pages
-│   │   └── api/           # API client
-│   └── Dockerfile
-├── scripts/               # Database initialization & data generation
-├── docker-compose.yml     # Local development setup
-├── render.yaml            # Render.com deployment config
-└── .env.example          # Environment variables template
-```
-
----
-
-## 🗄️ Database Schema (Section 15 of workflow.md)
-
-9 core tables matching the specification:
-
-1. `registration` - GSTIN details, legal name, PAN, constitution
-2. `premises` - Registered addresses with geocoding
-3. `premises_cluster` - Dissolved building polygons
-4. `invoice_line` - Invoice transactions with HSN codes
-5. `movement_record` - E-way bill dispatch information
-6. `return_summary` - Periodic filing summaries
-7. `refund_claim` - Refund applications
-8. `attribution` - Throughput assignment to premises
-9. `finding` - Detector results with scores and reasons
-
----
-
-## 🎭 Synthetic Dataset
-
-### Injected Fraud Patterns (Positives)
-
-- **P1**: Pure shell chain (new entities, no cash tax)
-- **P2**: Over-invoiced zero-rated supply (21× unit price)
-- **P3**: Circular trading (closed loops)
-- **P4**: Volume inflation (exceeds physical capacity)
-- **P5**: Footprint collision cluster (many firms on tiny footprint)
-
-### Hard Negatives (Legitimate Cases)
-
-- **N1**: Trading company (no factory needed)
-- **N2**: Small rural manufacturer (low values, cleared by stratification)
-- **N3**: Job-worker (third-party premises)
-- **N4**: Premium exporter (genuine high unit price, cleared by corroboration rule)
-- **N5**: Shared industrial estate (adequate footprint)
-- **N6**: Unresolvable address (field verification routing)
-
----
-
-## 🔒 Fairness Controls
-
-**Non-negotiable gates protecting honest taxpayers:**
-
-1. ✅ **Role gate**: Traders/job-workers exempted from physical tests
-2. ✅ **Geocode confidence gate**: No adverse findings below street-level precision
-3. ✅ **Attribution invariant**: Every rupee attributed to exactly ONE premises (no duplication)
-4. ✅ **Corroboration rule**: Physical detectors (D2/D3) need paper backing (D1/D4)
-5. ✅ **Threshold maturity**: Only S4 thresholds support adverse action; current demo uses S1-S2 for ranking only
-6. ✅ **Stratified benchmarking**: District×sector comparisons (protects rural operators)
-7. ✅ **Monotonicity**: Larger premises never more suspicious (Invariant I6)
-
----
-
-## 📊 Key Metrics
-
-- **False-positive rate**: Stratified by urban/rural, turnover band, region
-- **Precision@k**: Operational metric (officers work a queue, not threshold)
-- **Recall per pattern**: Reported separately for each fraud mode
-- **Detector marginal contribution**: Ablation studies showing earth-observation value
-
----
-
-## 🛠️ Development Workflow
-
-### Run Detectors Individually
+### Frontend
 
 ```bash
-# Test D1 Price Closure
-curl http://localhost:8000/api/detectors/d1?gstin=EXP-0001
-
-# Test D3 Premises Aggregation
-curl http://localhost:8000/api/detectors/d3?gstin=MAN-0001
-
-# Test full pipeline
-curl -X POST http://localhost:8000/api/cases/analyze \
-  -H "Content-Type: application/json" \
-  -d '{"gstin": "EXP-0001", "claim_id": "RC-001"}'
+cd frontend
+npm install
+npm run dev
 ```
 
-### Generate Synthetic Data
+Vite serves at `http://localhost:3000` and proxies `/api` to `http://localhost:8000` in development.
+
+For production, set:
+
+```text
+VITE_API_URL=https://YOUR-BACKEND.onrender.com/api
+```
+
+If it is not set, the code retains the previous deployed backend fallback for compatibility. The Evidence Console also has a local deterministic fallback so the demo remains explorable during a Render backend cold start.
+
+## Build
 
 ```bash
-python scripts/generate_synthetic_data.py --entities 200 --district surat
-python scripts/seed_db.py --overwrite
+cd frontend
+npm install
+npm run build
 ```
 
-### View Evidence Dossier
+Vite is configured to emit `frontend/build`, matching `render.yaml`.
 
-Frontend URL: `http://localhost:3000/case/{case_id}`
-- Overview tab: Entity info, amounts
-- Detector Results tab: D1-D4 scores and explanations
-- Network Graph tab: Upstream supplier visualization
-- Map View tab: Premises cluster overlay
-- Evidence Dossier tab: PDF-ready evidence package
+Backend syntax / smoke check:
 
----
+```bash
+PYTHONPATH=backend python -c "from app.demo_cases import analyze_demo_case; print(analyze_demo_case('RC-0001')['risk_tier'])"
+```
 
-## 🎯 Demo Day Preparation
+Expected result: `red_cluster`.
 
-### Must-Have Cases
+## Render deployment
 
-1. **Clear Fraud (Red Tier)**: 8 firms, ₹240 crore, 120 m² footprint
-2. **Over-invoicing Only (Amber)**: Single entity, 21× unit price
-3. **Hard Negative N4 (Green)**: Premium silk exporter, genuine high price
-4. **Industrial Estate (Green)**: Multiple firms, large footprint, plausible density
+The repository retains the existing multi-service `render.yaml` structure. For the frontend, set `VITE_API_URL` to the deployed backend **including `/api`**. See `DEPLOYMENT_GUIDE.md` for the replacement workflow.
 
-### Expected Performance
+## Integrity and safety choices
 
-- Frontend load time: <3 seconds
-- API response time: <2 seconds per request
-- D1 benchmark loading: ~500ms after cache warm-up
-- Spatial queries: ~100ms (with PostGIS indexing)
+- No real GSTIN/taxpayer records in the demo.
+- No claim that synthetic benchmark values are current official market statistics.
+- D2b cannot emit an adverse finding while its physical constants are unsourced.
+- Role gates protect traders/job-workers/service roles from factory assumptions.
+- Low-confidence geocodes cannot support adverse physical findings.
+- Physical-only evidence cannot independently escalate to Red.
+- The product recommends verification/audit; a human officer decides.
+- Blocked/suppressed evidence remains visible for auditability.
 
----
+## Supplied source material
 
-## 📚 References
-
-### Statutory
-- [Rule 86A CGST Rules](https://cleartax.in/s/all-about-cgst-rule-86a-itc)
-- [Notification 04/2024-CT](https://www.gstcouncil.gov.in/sites/default/files/2024-05/04-2024-ct-eng.pdf)
-- [CBIC Instruction 03/2025-GST](https://cbic-gst.gov.in/pdf/ins-gst-no-03-2025.pdf)
-
-### Datasets
-- [Overture Maps Buildings](https://docs.overturemaps.org/)
-- [ESA WorldCover](https://esa-worldcover.org/)
-- [UN Comtrade](https://comtradeplus.un.org/)
-- [DGCI&S Trade Stats](https://tradestat.commerce.gov.in/)
-- [OpenStreetMap India](https://download.geofabrik.de/asia/india.html)
-
----
-
-## ⚖️ Legal Notice
-
-This system produces evidence only. All adverse decisions require human officer review and written reasoning under Rule 86A. Thresholds here are at Stage S1-S2 maturity—suitable for case prioritization but not yet for adverse action without field validation.
-
-The dossier explicitly documents what the system refused to conclude, ensuring defensible decision-making.
-
----
-
-## 👥 Team
-
-Built for SIH 2026 as part of the "Fiscal Eye" team.
-
-Based on the technical specification in `workflow.md` and refined through critical analysis in `01_CRITICAL_ANALYSIS.md`.
-
----
-
-## 📞 Support
-
-Issues and feature requests: Open an issue on this repository.
-
-Technical questions: Refer to the inline code comments and Section 13-19 of workflow.md for normative specifications.
-
----
-
-**Version**: 1.0.0  
-**Status**: MVP Prototype  
-**License**: MIT (open source for research and demonstration)
-# #   U p d a t e d   f r o n t e n d   b u i l d  
- # #   I m m e d i a t e   C O R S   f i x  
- 
+`docs/workflow.md` and `docs/ITC_PPT.pdf` are included unchanged so the code, prototype and SIH presentation stay in one handoff package.

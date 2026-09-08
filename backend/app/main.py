@@ -1,371 +1,147 @@
-"""
-PACE - Physical Plausibility Engine for GST ITC Refund Adjudication
-FastAPI Application Entry Point
+"""ITC Radar / PACE synthetic prototype API.
 
-Implements workflow.md Sections 7 (Pipeline Stages) and 15 (Data Dictionary)
+The API keeps the original D1 endpoint for backwards compatibility and adds a
+deterministic case library used by the redesigned React interface. It is a demo
+and decision-support prototype, not an automated GST adjudication service.
 """
 
-from fastapi import FastAPI, HTTPException, Depends
+from typing import Any, Dict, List
+
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from typing import List, Dict, Any
-import asyncio
 
 from app.config import get_settings
-from app.database import get_db, Base, engine, init_db
-from app.models import Registration, InvoiceLine, RefundClaim
 from app.detectors.d1_price import PriceClosureDetector
+from app.demo_cases import DEMO_CASES, analyze_demo_case
 
-
-# Initialize FastAPI app
 settings = get_settings()
 
 app = FastAPI(
-    title="PACE API",
-    description="Physical Plausibility Engine for GST ITC Refund Adjudication",
-    version="1.0.0",
+    title="ITC Radar — PACE API",
+    description="Synthetic evidence-driven GST ITC refund risk detection prototype",
+    version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
 )
 
-# Configure CORS - Allow ALL origins for production
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins (including Render frontend)
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
-# ============================================================================
-# LIFECYCLE
-# ============================================================================
-
 @app.on_event("startup")
 async def startup_event():
-    """
-    Initialize database tables on startup.
-    Called once when application starts.
-    """
-    import os
-    print(f"Starting PACE Backend v{__import__('app').__version__}")
+    print("Starting ITC Radar / PACE API v2.0.0")
     print(f"Environment: {settings.ENVIRONMENT}")
-    
-    # Only create tables if DATABASE_URL is available (not in production initially)
-    # In production, tables are created via migration script or manually
-    if settings.is_development:
-        # Create all SQLAlchemy models in database for development
-        try:
-            Base.metadata.create_all(bind=engine)
-            init_db()
-            print("Database initialized successfully")
-        except Exception as e:
-            print(f"Warning: Database initialization skipped: {e}")
+    print("Prototype mode: synthetic data only")
 
-
-# ============================================================================
-# HEALTH CHECK
-# ============================================================================
-
-@app.get("/health")
-def health_check():
-    """
-    Health check endpoint for deployment validation.
-    Returns system status and connected services.
-    """
-    try:
-        from app.database import check_connection
-        
-        db_status = "connected" if check_connection() else "disconnected"
-        
-        return {
-            "status": "healthy",
-            "database": db_status,
-            "environment": settings.ENVIRONMENT,
-            "debug": settings.DEBUG,
-        }
-    except Exception as e:
-        return {
-            "status": "unhealthy",
-            "error": str(e),
-        }
-
-
-# ============================================================================
-# ROOT DETECTOR ENDPOINTS
-# ============================================================================
 
 @app.get("/")
 def root():
-    """Root endpoint with API information."""
     return {
-        "service": "PACE API",
-        "version": "1.0.0",
-        "description": "Physical Plausibility Engine for GST ITC Refund Adjudication",
-        "endpoints": [
-            "/health",
-            "/api/detectors/d1",
-            "/api/cases/analyze",
-            "/docs"
+        "service": "ITC Radar — PACE API",
+        "version": "2.0.0",
+        "mode": "synthetic_demo",
+        "endpoints": ["/health", "/api/health-proxy", "/api/detectors/d1", "/api/demo/cases", "/api/demo/cases/{case_id}/analyze", "/docs"],
+    }
+
+
+@app.get("/health")
+def health_check():
+    # The interactive demo does not require Postgres. This makes Render cold starts
+    # and frontend demos independent of optional database availability.
+    return {
+        "status": "healthy",
+        "service": "itc-radar-pace",
+        "version": "2.0.0",
+        "mode": "synthetic_demo",
+        "database_required_for_demo": False,
+    }
+
+
+@app.get("/api/health-proxy")
+def api_health_check():
+    return health_check()
+
+
+@app.post("/api/detectors/d1")
+def run_d1_price_closure(invoice_lines: List[Dict[str, Any]]):
+    try:
+        detector = PriceClosureDetector(settings)
+        findings = detector.detect(invoice_lines)
+        return {
+            "detector": "D1",
+            "name": "Price Closure",
+            "synthetic_benchmark": True,
+            "findings_count": len(findings),
+            "findings": [f.to_dict() for f in findings],
+            "thresholds": {"flag": settings.D1_PRICE_THRESHOLD_FLAG, "strong": settings.D1_PRICE_THRESHOLD_STRONG},
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/demo/cases")
+def list_demo_cases():
+    return {
+        "synthetic": True,
+        "count": len(DEMO_CASES),
+        "cases": [
+            {
+                "case_id": case_id,
+                "company": case["company"],
+                "gstin": case["gstin"],
+                "claim_amount_crore": case["claim_amount_crore"],
+            }
+            for case_id, case in DEMO_CASES.items()
         ],
     }
 
 
-# ============================================================================
-# D1 PRICE CLOSURE DETECTOR ENDPOINT
-# ============================================================================
-
-@app.post("/api/detectors/d1")
-def run_d1_price_closure(invoice_lines: List[Dict[str, Any]]):
-    """
-    Run D1 Price Closure Detector on invoice lines.
-    
-    Input format per Section 15.4:
-    {
-        "taxable_value": 10000.0,
-        "quantity_kg": 10.0,
-        "hsn": "540792"
-    }
-    
-    Returns findings where declared price exceeds benchmarks.
-    """
+@app.post("/api/demo/cases/{case_id}/analyze")
+def run_demo_case(case_id: str):
     try:
-        detector = PriceClosureDetector(settings)
-        findings = detector.detect(invoice_lines)
-        
-        return {
-            "detector": "D1",
-            "name": "Price Closure",
-            "findings_count": len(findings),
-            "findings": [f.to_dict() for f in findings],
-            "thresholds": {
-                "flag": settings.D1_PRICE_THRESHOLD_FLAG,
-                "strong": settings.D1_PRICE_THRESHOLD_STRONG,
-            },
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return analyze_demo_case(case_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=f"Unknown synthetic case: {case_id}") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Synthetic analysis failed: {exc}") from exc
 
-
-# ============================================================================
-# CASE ANALYSIS ENDPOINT (Placeholder for full pipeline)
-# ============================================================================
 
 @app.post("/api/cases/analyze")
-def analyze_case(data: Dict[str, Any]):
+def analyze_case_compat(data: Dict[str, Any]):
+    """Backwards-compatible endpoint used by the v1 frontend.
+
+    Pass demo_case_id to run the full deterministic synthetic case. Without it,
+    the endpoint runs D1 only and never manufactures D2-D4 evidence.
     """
-    Full case analysis pipeline (P0-P8).
-    
-    Currently implements only D1 + simple mock results.
-    Full implementation will be added iteratively.
-    
-    Input:
-    {
-        "gstin": "EXP-0001",
-        "claim_id": "RC-001",
-        "invoice_lines": [...]
-    }
-    
-    Returns:
-    {
-        "case_id": "CASE-001",
-        "risk_tier": "amber",
-        "detectors": {...},
-        "dossier_url": "/cases/CASE-001/dossier"
-    }
-    """
+    demo_case_id = data.get("demo_case_id")
+    if demo_case_id:
+        try:
+            return analyze_demo_case(str(demo_case_id))
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail=f"Unknown synthetic case: {demo_case_id}") from exc
+
     gstin = data.get("gstin")
     claim_id = data.get("claim_id")
-    invoice_lines = data.get("invoice_lines", [])
-    
-    if not gstin:
-        raise HTTPException(status_code=400, detail="Missing GSTIN")
-    
-    if not claim_id:
-        raise HTTPException(status_code=400, detail="Missing claim_id")
-    
-    try:
-        # Run D1 detector
-        d1_detector = PriceClosureDetector(settings)
-        d1_findings = d1_detector.detect(invoice_lines)
-        
-        # Mock results for other detectors (will be implemented later)
-        d3_findings = []
-        d4_findings = []
-        
-        # Determine risk tier based on findings (score > 0.85 indicates strong flag)
-        has_strong_flag = any(f.score > 0.85 for f in d1_findings)
-        
-        risk_tier = "green"
-        if has_strong_flag:
-            risk_tier = "red" if d3_findings else "amber"
-        elif d1_findings:
-            risk_tier = "amber"
-        
-        return {
-            "case_id": f"CASE-{gstin}",
-            "gstin": gstin,
-            "claim_id": claim_id,
-            "risk_tier": risk_tier,
-            "detectors": {
-                "d1_price": {
-                    "findings_count": len(d1_findings),
-                    "findings": [f.to_dict() for f in d1_findings],
-                },
-                "d3_aggregation": {
-                    "findings_count": len(d3_findings),
-                    "findings": [],
-                },
-                "d4_network": {
-                    "findings_count": len(d4_findings),
-                    "findings": [],
-                },
-            },
-            "status": "analysis_complete",
-        }
-        
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
-
-
-# ============================================================================
-# SAMPLE DATA ENDPOINTS (For demo purposes)
-# ============================================================================
-
-@app.get("/api/sample/invoices/d1-flagged")
-def sample_invoice_d1_flagged():
-    """
-    Sample invoice line that should trigger D1 flag.
-    
-    Example: Over-invoiced fabric at 21× market price
-    """
-    return {
-        "description": "Over-invoiced synthetic fabric (HSN 5407)",
-        "invoice_lines": [
-            {
-                "taxable_value": 2394000.0,
-                "quantity_kg": 760.0,
-                "hsn": "540792",
-                "unit_price_calculated": 3150.0,
-                "benchmark_median": 150.0,
-                "multiple": 21.0,
-            }
-        ]
-    }
-
-
-@app.get("/api/sample/invoices/d1-clean")
-def sample_invoice_d1_clean():
-    """
-    Sample invoice line that should NOT trigger D1 flag.
-    
-    Example: Normally priced goods
-    """
-    return {
-        "description": "Normally priced cotton fabric (HSN 5208)",
-        "invoice_lines": [
-            {
-                "taxable_value": 280000.0,
-                "quantity_kg": 1000.0,
-                "hsn": "520831",
-                "unit_price_calculated": 280.0,
-                "benchmark_median": 280.0,
-                "multiple": 1.0,
-            }
-        ]
-    }
-
-
-# ============================================================================
-# CASE ANALYSIS (Full workflow simulation)
-# ============================================================================
-
-@app.post("/api/cases/analyze")
-def analyze_case(data: Dict[str, Any], db: Session = Depends(get_db)):
-    """
-    Full case analysis pipeline.
-    Currently implements only D1 detector, placeholders for D2-D4.
-    """
-    gstin = data.get('gstin')
-    claim_id = data.get('claim_id')
-    invoice_lines = data.get('invoice_lines', [])
-    
     if not gstin or not claim_id:
         raise HTTPException(status_code=400, detail="Missing required fields: gstin, claim_id")
-    
-    try:
-        # Run D1 detector
-        d1_detector = PriceClosureDetector(settings)
-        d1_findings = d1_detector.detect(invoice_lines)
-        
-        # Mock results for other detectors (not fully implemented yet)
-        d3_findings = []  # Placeholder
-        d4_findings = []  # Placeholder
-        
-        # Determine risk tier based on findings
-        has_strong_flag = any(f.score > 0.85 and f.confidence > 0.7 for f in d1_findings)
-        
-        risk_tier = "green"
-        if has_strong_flag:
-            risk_tier = "red" if d3_findings else "amber"
-        elif d1_findings:
-            risk_tier = "amber"
-        
-        return {
-            "case_id": f"CASE-{gstin}",
-            "gstin": gstin,
-            "claim_id": claim_id,
-            "risk_tier": risk_tier,
-            "detectors": {
-                "d1_price": {
-                    "findings_count": len(d1_findings),
-                    "findings": [f.to_dict() for f in d1_findings],
-                },
-                "d3_aggregation": {
-                    "findings_count": len(d3_findings),
-                    "findings": [],
-                },
-                "d4_network": {
-                    "findings_count": len(d4_findings),
-                    "findings": [],
-                },
-            },
-            "status": "analysis_complete",
-        }
-        
-    except Exception as e:
-        logger.error(f"Case analysis error: {e}")
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
-
-# ============================================================================
-# DATABASE QUERIES (Basic CRUD for testing)
-# ============================================================================
-
-@app.get("/api/registrations")
-def list_registrations(db: Session = Depends(get_db)):
-    """List all registered entities."""
-    registrations = db.query(Registration).limit(100).all()
-    
+    d1 = PriceClosureDetector(settings).detect(data.get("invoice_lines", []))
     return {
-        "count": len(registrations),
-        "registrations": [
-            {
-                "gstin": r.gstin,
-                "legal_name": r.legal_name,
-                "status": r.status,
-            }
-            for r in registrations
-        ]
+        "case_id": claim_id,
+        "gstin": gstin,
+        "synthetic": True,
+        "risk_tier": "amber" if d1 else "green",
+        "detectors": {"d1_price": {"findings_count": len(d1), "findings": [f.to_dict() for f in d1]}},
+        "notice": "Generic compatibility mode runs D1 only; no physical/network evidence is invented.",
     }
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "app.main:app",
-        host=settings.API_HOST,
-        port=settings.API_PORT,
-        reload=settings.DEBUG,
-    )
+    uvicorn.run("app.main:app", host=settings.API_HOST, port=settings.API_PORT, reload=settings.DEBUG)

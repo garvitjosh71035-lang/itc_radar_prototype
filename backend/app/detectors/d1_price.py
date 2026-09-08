@@ -235,15 +235,14 @@ class PriceClosureDetector(BaseDetector):
             severity_text = "below threshold"
         
         finding_text = (
-            f"Declares {ratio:.1f}× the median export unit value ({median:.2f} vs {unit_price:.2f}/kg) "
-            f"for this HSN - {severity_text}. "
-            f"(z = {z_score:.2f}, confidence interval adjusted for small samples)"
+            f"Declares {ratio:.1f}× the synthetic median export unit value "
+            f"({unit_price:.2f}/kg declared vs {median:.2f}/kg benchmark) — {severity_text}."
         )
         
         # Evidence references
         evidence_refs = [
-            f"DGCI&S trade statistics (Indian exports)",
-            f"Haven benchmark version: 2026",
+            f"Synthetic HSN benchmark (demo only; production source would be versioned trade statistics)",
+            f"Synthetic benchmark version: demo-2026.1",
             f"Unit price calculation: value / quantity_kg",
         ]
         
