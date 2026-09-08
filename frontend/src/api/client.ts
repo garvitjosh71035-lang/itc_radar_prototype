@@ -1,5 +1,14 @@
 import axios from 'axios'
 
+// Declare Vite environment variables for TypeScript
+interface ImportMetaEnv {
+  readonly VITE_API_URL: string
+}
+
+interface ImportMeta {
+  readonly env: ImportMetaEnv
+}
+
 const configured = (import.meta.env.VITE_API_URL || '').trim()
 
 function normalizeApiBase(value: string) {
