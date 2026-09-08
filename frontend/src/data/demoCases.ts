@@ -11,18 +11,21 @@
 
 export type RiskTier = 'green' | 'amber' | 'red' | 'red_cluster';
 
-export type DetectorId = 'D1' | 'D2a' | 'D2b' | 'D3' | 'D4';
-
-export interface DetectorDemo {
+export interface DetectorView {
   id: string;
   name: string;
-  title: string;
+  short: string;
+  metricLabel: string;
+  metricValue: string;
+  score: number;
   status: string;
-  finding: string;
-  confidence: number;
-  evidence: string[];
+  finding?: string;
+  confidence?: number;
+  evidence?: string[];
   blockedReason?: string;
 }
+
+export type DetectorId = DetectorView['id'];
 
 export interface PremisesData {
   clusterId: string;
@@ -37,6 +40,20 @@ export interface NetworkData {
   cycle: boolean;
   suspiciousNodes: number;
 }
+
+interface PriceData {
+  commodity: string;
+  hsn: string;
+  referenceMedian: number;
+  declaredValue: number;
+  multiple: number;
+  benchmark: string;
+  declared: string;
+}
+
+// ============================================================================
+// MAIN DEMO CASE INTERFACE
+// ============================================================================
 
 export interface DemoCase {
   id: string;
@@ -56,15 +73,11 @@ export interface DemoCase {
   action: string;
   score: number;
   runtimeMs: number;
-  price: {
-    referenceMedian: number;
-    declaredValue: number;
-    multiple: number;
-  };
+  price: PriceData;
   premises: PremisesData;
   network: NetworkData;
-  detectors: DetectorDemo[];
-  guardrails: string[];
+  detectors: DetectorView[];
+  guardrail: string[];
   type: 'positive' | 'negative';
 }
 
@@ -94,11 +107,15 @@ export const rc0001: DemoCase = {
   score: 97,
   runtimeMs: 180,
   
-  // PRICE DATA (for D1 detector visualization)
+  // PRICE DATA (App.tsx format)
   price: {
+    commodity: "Synthetic woven fabric",
+    hsn: "5407",
     referenceMedian: 150,        // Market rate Rs 150/kg
     declaredValue: 4650,         // Declared Rs 4,650/kg
-    multiple: 31                 // Price multiple (31x)
+    multiple: 31,                // Price multiple (31x)
+    benchmark: "Rs 150/kg median",
+    declared: "Rs 4,650/kg"
   },
   
   // PREMISES DATA (for D3 detector visualization)
@@ -117,19 +134,19 @@ export const rc0001: DemoCase = {
     suspiciousNodes: 11          // 11 flagged suppliers
   },
   
-  // GUARDAILS (Fairness Controls)
-  guardrails: [
+  // GUARDRAILS (Fairness Controls)
+  guardrail: [
     "Human-in-the-loop decision required",
     "Suppressed findings retained for audit trail",
     "Hard negatives tested in evaluation set"
   ],
   
-  // DETECTORS (D1-D4 Pipeline Output)
+  // DETECTORS (D1-D4 Pipeline Output) - App.tsx format
   detectors: [
     {
       id: "D1",
       name: "Price Closure",
-      title: "Economic plausibility",
+      short: "Economic plausibility",
       status: "Strong flag",
       finding: "Two export lines sit at approximately 28× and 31× the synthetic HSN benchmark median.",
       confidence: 0.96,
@@ -139,12 +156,15 @@ export const rc0001: DemoCase = {
         "Unit price calculation: taxable_value / quantity_kg",
         "HSN 5407 median: ₹150/kg",
         "Declared values: ₹4,200/kg and ₹4,650/kg"
-      ]
+      ],
+      metricLabel: "Highest price multiple",
+      metricValue: "31×",
+      score: 0.96
     },
     {
       id: "D2a",
       name: "Capacity Closure",
-      title: "Throughput density",
+      short: "Throughput density",
       status: "Strong flag",
       finding: "Aggregate declared throughput density exceeds district-and-sector median by approximately 790 times.",
       confidence: 0.82,
@@ -154,25 +174,27 @@ export const rc0001: DemoCase = {
         "Total attributed value: ₹380 crore",
         "District × sector benchmark: ₹0.004 crore/m²",
         "Declared density: ₹3.96 crore/m²"
-      ]
+      ],
+      metricLabel: "Density multiple",
+      metricValue: "≈790×",
+      score: 0.82
     },
     {
       id: "D2b",
       name: "Physical Capacity",
-      title: "Explainable engineering model",
+      short: "Explainable engineering model",
       status: "Suppressed",
       finding: "No D2b finding emitted because sector physical-capacity parameters have not been sourced to citable standards.",
       confidence: 1.0,
-      evidence: [
-        "Capacity parameter table: calibration pending",
-        "Invariant I9: No adverse finding without citable parameters"
-      ],
-      blockedReason: "unsourced_parameter"
+      blockedReason: "unsourced_parameter",
+      metricLabel: "Safety gate",
+      metricValue: "Blocked",
+      score: 0.0
     },
     {
       id: "D3",
       name: "Premises Aggregation",
-      title: "Ground reality",
+      short: "Ground reality",
       status: "Strong flag",
       finding: "11 goods-supplying entities clustered at 1 per 8.7 square meters — far exceeding the threshold of 1 per 50 square meters.",
       confidence: 0.91,
@@ -182,12 +204,15 @@ export const rc0001: DemoCase = {
         "Land cover classification: built-up",
         "Road access class: residential",
         "Entity-to-area ratio: 1 per 8.7 m²"
-      ]
+      ],
+      metricLabel: "Entity density",
+      metricValue: "1 / 8.7 m²",
+      score: 0.91
     },
     {
       id: "D4",
       name: "Network Topology",
-      title: "Syndicate structure",
+      short: "Syndicate structure",
       status: "Strong flag",
       finding: "Tax origin depth 0 for all 11 direct suppliers; cash/ITC ratio of 0.4% across the chain; 3 shared bank account hashes among nominally unrelated entities.",
       confidence: 0.88,
@@ -197,7 +222,10 @@ export const rc0001: DemoCase = {
         "Shared identifiers: 3 bank accounts used by 11 firms",
         "Registration age at first invoice: all under 90 days old",
         "Billing velocity: 8× above district percentile"
-      ]
+      ],
+      metricLabel: "Cash / ITC",
+      metricValue: "0.4%",
+      score: 0.88
     }
   ],
   
