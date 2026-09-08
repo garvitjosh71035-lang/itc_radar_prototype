@@ -194,11 +194,8 @@ def analyze_case(data: Dict[str, Any]):
         d3_findings = []
         d4_findings = []
         
-        # Determine risk tier based on findings
-        has_strong_flag = any(
-            f.z_score >= settings.D1_PRICE_THRESHOLD_STRONG 
-            for f in d1_findings
-        )
+        # Determine risk tier based on findings (score > 0.85 indicates strong flag)
+        has_strong_flag = any(f.score > 0.85 for f in d1_findings)
         
         risk_tier = "green"
         if has_strong_flag:
