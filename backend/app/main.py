@@ -281,6 +281,68 @@ def sample_invoice_d1_clean():
 
 
 # ============================================================================
+# CASE ANALYSIS (Full workflow simulation)
+# ============================================================================
+
+@app.post("/api/cases/analyze")
+def analyze_case(data: Dict[str, Any], db: Session = Depends(get_db)):
+    """
+    Full case analysis pipeline.
+    Currently implements only D1 detector, placeholders for D2-D4.
+    """
+    gstin = data.get('gstin')
+    claim_id = data.get('claim_id')
+    invoice_lines = data.get('invoice_lines', [])
+    
+    if not gstin or not claim_id:
+        raise HTTPException(status_code=400, detail="Missing required fields: gstin, claim_id")
+    
+    try:
+        # Run D1 detector
+        d1_detector = PriceClosureDetector(settings)
+        d1_findings = d1_detector.detect(invoice_lines)
+        
+        # Mock results for other detectors (not fully implemented yet)
+        d3_findings = []  # Placeholder
+        d4_findings = []  # Placeholder
+        
+        # Determine risk tier based on findings
+        has_strong_flag = any(f.score > 0.85 and f.confidence > 0.7 for f in d1_findings)
+        
+        risk_tier = "green"
+        if has_strong_flag:
+            risk_tier = "red" if d3_findings else "amber"
+        elif d1_findings:
+            risk_tier = "amber"
+        
+        return {
+            "case_id": f"CASE-{gstin}",
+            "gstin": gstin,
+            "claim_id": claim_id,
+            "risk_tier": risk_tier,
+            "detectors": {
+                "d1_price": {
+                    "findings_count": len(d1_findings),
+                    "findings": [f.to_dict() for f in d1_findings],
+                },
+                "d3_aggregation": {
+                    "findings_count": len(d3_findings),
+                    "findings": [],
+                },
+                "d4_network": {
+                    "findings_count": len(d4_findings),
+                    "findings": [],
+                },
+            },
+            "status": "analysis_complete",
+        }
+        
+    except Exception as e:
+        logger.error(f"Case analysis error: {e}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+
+
+# ============================================================================
 # DATABASE QUERIES (Basic CRUD for testing)
 # ============================================================================
 
